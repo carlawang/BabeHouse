@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BabeHouse 实时拍卖</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#f5f5f5;font-family:Arial;padding:15px;max-width:600px;margin:0 auto}
+.card{background:#fff;border-radius:12px;padding:16px;margin-bottom:12px}
+input{width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;margin:8px 0}
+button{width:100%;padding:12px;background:#007AFF;color:#fff;border:0;border-radius:8px}
+.rank-item{padding:10px;border-bottom:1px solid #eee}
+</style>
+</head>
+<body>
+
+<div class="card"><h2>🏆 BabeHouse 拍卖</h2></div>
+
+<div class="card">
+  <input id="username" placeholder="输入用户名">
+  <button onclick="setUser()">设置用户名</button>
+  <div style="font-size:12px;margin-top:5px">当前：<span id="showUser"></span></div>
+</div>
+
+<div class="card">
+  <h3>拍卖商品</h3>
+  <p style="color:#666">起拍价：100</p>
+</div>
+
+<div class="card">
+  <input type="number" id="price" min="100" placeholder="输入出价">
+  <button onclick="addBid()">提交出价</button>
+</div>
+
+<div class="card">
+  <h3>实时排名</h3>
+  <div id="list"></div>
+</div>
+
+<script>
+// 🔥 关键：这里不再暴露密钥！！！
+const API = "https://auction-api-001.your-service.com";
+
+let user = localStorage.getItem("user");
+if(user) document.getElementById("showUser").innerText = user;
+
+function setUser(){
+  let u = document.getElementById("username").value.trim();
+  if(!u)return alert("请输入用户名");
+  user = u;
+  localStorage.setItem("user", u);
+  document.getElementById("showUser").innerText = u;
+}
+
+async function addBid(){
+  if(!user)return alert("先设置用户名");
+  let p = parseInt(document.getElementById("price").value);
+  if(!p || p<100)return alert("价格≥100");
+
+  let res = await fetch(API+"/bid", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({name:user, price:p})
+  });
+
+  alert("出价成功");
+  getList();
+}
+
+async function getList(){
+  let res = await fetch(API+"/list");
+  let list = await res.json();
+  list.sort((a,b)=>b.price-a.price);
+  let html = "";
+  list.forEach((it,i)=>{
+    let m=["🥇","🥈","🥉"][i]||"";
+    html+=`<div class="rank-item">${m} ${it.name} ￥${it.price}</div>`;
+  });
+  document.getElementById("list").innerHTML = html || "<div>暂无出价</div>";
+}
+
+setInterval(getList, 3000);
+window.onload = getList;
+</script>
+</body>
+</html>
