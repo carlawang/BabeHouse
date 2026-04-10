@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>拍卖管理后台</title>
+<style>
+body{padding:20px;max-width:500px;margin:auto;font-family:Arial,sans-serif}
+input,textarea,button{width:100%;padding:12px;margin:8px 0;border-radius:8px;border:1px solid #ddd}
+button{background:#007AFF;color:#fff;border:none;cursor:pointer}
+button.clear{background:#ff3b30}
+</style>
+</head>
+<body>
+<h2>管理后台</h2>
+<input id="img" placeholder="商品图片链接"><br>
+<input id="title" placeholder="商品名称"><br>
+<textarea id="desc" placeholder="商品描述" rows="4"></textarea><br>
+<button onclick="saveGoods()">保存商品信息</button>
+<button class="clear" onclick="clearBids()">清空所有出价</button>
+
+<script src="https://imgcache.qq.com/qcloud/tcbjs/1.17.5/tcb.js"></script>
+<script>
+let db = null;
+
+async function initApp() {
+  const app = tcb.init({
+    env: "babehouse-7g2pol15cd8980c7"
+  });
+  await app.auth({
+    persistence: "local"
+  });
+  db = app.database();
+  loadGoodsData();
+}
+
+async function loadGoodsData(){
+  if (!db) return;
+  try {
+    const res = await db.collection("goods").get();
+    const g = res.data[0] || {};
+    document.getElementById("img").value = g.img || "";
+    document.getElementById("title").value = g.title || "";
+    document.getElementById("desc").value = g.desc || "";
+  } catch (e) {
+    console.error("加载商品失败：", e);
+  }
+}
+
+async function saveGoods(){
+  if (!db) return alert("系统初始化中，请稍等几秒再试！");
+  
+  const img = document.getElementById("img").value.trim();
+  const title = document.getElementById("title").value.trim();
+  const desc = document.getElementById("desc").value.trim();
+  if(!img || !title) return alert("图片和名称不能为空！");
+  
+  try {
+    const res = await db.collection("goods").get();
+    if (res.data.length > 0) {
+      await db.collection("goods").doc(res.data[0]._id).update({ img, title, desc });
+    } else {
+      await db.collection("goods").add({ img, title, desc });
+    }
+    alert("✅ 保存成功！");
+  } catch (e) {
+    alert("❌ 保存失败：" + e.message);
+  }
+}
+
+async function clearBids(){
+  if (!db) return alert("系统初始化中，请稍等几秒再试！");
+  if(!confirm("⚠️ 确定要清空所有出价吗？此操作不可恢复！")) return;
+  try {
+    const res = await db.collection("bids").get();
+    const batch = db.batch();
+    res.data.forEach(item => {
+      batch.delete(db.collection("bids").doc(item._id));
+    });
+    await batch.commit();
+    alert("✅ 已清空所有出价！所有用户排行榜将立即清空");
+  } catch (e) {
+    alert("❌ 清空失败：" + e.message);
+  }
+}
+
+window.onload = () => {
+  initApp();
+};
+</script>
+</body>
+</html>

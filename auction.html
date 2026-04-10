@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>拍卖大厅</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#f5f5f5;font-family:Arial,sans-serif;padding:20px;max-width:600px;margin:auto}
+.card{background:#fff;padding:16px;border-radius:12px;margin-bottom:12px}
+input{width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;margin:8px 0}
+button{width:100%;padding:12px;background:#007AFF;color:#fff;border:none;border-radius:8px;cursor:pointer}
+img{width:100%;border-radius:8px;margin:8px 0}
+.rank{padding:10px;border-bottom:1px solid #eee}
+.error{color:red;font-size:12px;margin-top:-5px;margin-bottom:8px}
+</style>
+</head>
+<body>
+
+<div class="card"><h2>拍卖大厅</h2></div>
+
+<div class="card">
+  <input id="user" placeholder="输入用户名">
+  <button onclick="setUser()">保存/修改用户名</button>
+  <div>当前用户：<b id="showUser"></b></div>
+</div>
+
+<div class="card">
+  <h3 id="title">加载中...</h3>
+  <img id="img" src="">
+  <p id="desc" style="color:#666"></p>
+</div>
+
+<div class="card">
+  <input type="number" id="price" placeholder="请输入出价" min="0">
+  <div id="priceError" class="error"></div>
+  <button onclick="bid()">提交出价</button>
+</div>
+
+<div class="card">
+  <h3>实时前三名</h3>
+  <div id="top3"></div>
+</div>
+
+<script src="https://imgcache.qq.com/qcloud/tcbjs/1.17.5/tcb.js"></script>
+<script>
+let db = null;
+
+// 匿名登录初始化（彻底解决鉴权问题）
+async function initApp() {
+  const app = tcb.init({
+    env: "babehouse-7g2pol15cd8980c7"
+  });
+  // 匿名登录，无需密钥
+  await app.auth({
+    persistence: "local"
+  });
+  db = app.database();
+  // 初始化完成后加载数据
+  loadGoods();
+  startRefresh();
+}
+
+function setUser(){
+  let u = document.getElementById("user").value.trim();
+  if(!u) return alert("请输入用户名！");
+  localStorage.setItem("user", u);
+  document.getElementById("showUser").innerText = u;
+}
+
+async function bid(){
+  if (!db) return alert("系统初始化中，请稍等几秒再试！");
+  
+  const priceError = document.getElementById("priceError");
+  priceError.innerText = "";
+  
+  let user = localStorage.getItem("user");
+  let price = parseInt(document.getElementById("price").value);
+  
+  if(!user) return alert("请先设置用户名！");
+  if(!price || price <= 0) {
+    priceError.innerText = "请输入大于0的价格！";
+    return;
+  }
+
+  try {
+    const res = await db.collection("bids").where({ name: user }).get();
+    if (res.data.length > 0) {
+      await db.collection("bids").where({ name: user }).update({ price: price });
+    } else {
+      await db.collection("bids").add({ name: user, price: price });
+    }
+    alert("✅ 出价成功！");
+    document.getElementById("price").value = "";
+    loadTop();
+  } catch (err) {
+    alert("❌ 提交失败：" + err.message);
+  }
+}
+
+async function loadGoods(){
+  if (!db) return;
+  try {
+    const res = await db.collection("goods").get();
+    const goods = res.data[0] || {};
+    document.getElementById("title").innerText = goods.title || "商品";
+    document.getElementById("img").src = goods.img || "";
+    document.getElementById("desc").innerText = goods.desc || "";
+  } catch (e) {
+    console.error("加载商品失败：", e);
+  }
+}
+
+async function loadTop(){
+  if (!db) return;
+  try {
+    const res = await db.collection("bids").orderBy("price", "desc").limit(3).get();
+    const list = res.data || [];
+    let html = "";
+    list.forEach((it,i)=>{
+      const m = ["🥇","🥈","🥉"][i];
+      html+=`<div class="rank">${m} ${it.name} —— ￥${it.price}</div>`;
+    });
+    document.getElementById("top3").innerHTML = html || "暂无出价";
+  } catch (e) {
+    console.error("加载排行榜失败：", e);
+    document.getElementById("top3").innerHTML = "加载中...";
+  }
+}
+
+async function startRefresh() {
+  await loadTop();
+  setTimeout(startRefresh, 2000);
+}
+
+window.onload=()=>{
+  document.getElementById("showUser").innerText=localStorage.getItem("user")||"";
+  initApp();
+};
+</script>
+</body>
+</html>
