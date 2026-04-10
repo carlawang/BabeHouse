@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>拍卖系统</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#f5f5f5;font-family:Arial;padding:20px;max-width:600px;margin:auto}
+.card{background:white;padding:16px;border-radius:12px;margin-bottom:12px;box-shadow:0 2px 5px #00000010}
+input{width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;margin:8px 0}
+button{width:100%;padding:12px;background:#007AFF;color:white;border:none;border-radius:8px}
+img{width:100%;border-radius:8px;margin:10px 0}
+.rank{padding:10px;border-bottom:1px solid #f0f0f0}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h2>🧿 公开拍卖大厅</h2>
+</div>
+
+<div class="card">
+  <h3>👤 设置用户名</h3>
+  <input id="username" placeholder="输入你的名字">
+  <button onclick="saveUser()">保存 / 修改用户名</button>
+  <p style="margin-top:6px;font-size:14px">当前：<b id="showUser"></b></p>
+</div>
+
+<div class="card">
+  <h3 id="p-title">商品名称</h3>
+  <img id="p-img" src="https://picsum.photos/600/400">
+  <p id="p-desc" style="color:#666">商品描述</p>
+</div>
+
+<div class="card">
+  <h3>💰 我要出价</h3>
+  <input type="number" id="price" placeholder="输入价格" min="1">
+  <button onclick="sendBid()">提交出价</button>
+</div>
+
+<div class="card">
+  <h3>🏆 当前最高前三名</h3>
+  <div id="top3"></div>
+</div>
+
+<script>
+const USER_KEY = "username";
+const GIST_URL = "https://api.github.com/gists/99999999999999999";
+const TOKEN = "YOUR_GIST_TOKEN";
+
+function loadUser() {
+  let u = localStorage.getItem(USER_KEY);
+  if (u) document.getElementById("showUser").innerText = u;
+}
+
+function saveUser() {
+  let u = document.getElementById("username").value.trim();
+  if (!u) return alert("请输入名字");
+  localStorage.setItem(USER_KEY, u);
+  document.getElementById("showUser").innerText = u;
+}
+
+async function sendBid() {
+  let user = localStorage.getItem(USER_KEY);
+  if (!user) return alert("先设置用户名");
+  let price = parseInt(document.getElementById("price").value);
+  if (!price || price < 1) return alert("请输入有效价格");
+
+  let res = await fetch(GIST_URL, {
+    headers: { Authorization: "token " + TOKEN }
+  });
+  let data = await res.json();
+  let content = JSON.parse(atob(data.files["bids.json"].content));
+
+  let idx = content.findIndex(x => x.n === user);
+  if (idx >= 0) content[idx].p = price;
+  else content.push({ n: user, p: price });
+
+  await fetch(GIST_URL, {
+    method: "PATCH",
+    headers: { Authorization: "token " + TOKEN },
+    body: JSON.stringify({
+      files: { "bids.json": { content: btoa(JSON.stringify(content)) } }
+    })
+  });
+  alert("出价成功！");
+  refreshTop3();
+}
+
+async function refreshTop3() {
+  let res = await fetch(GIST_URL);
+  let data = await res.json();
+  let list = JSON.parse(atob(data.files["bids.json"].content));
+  list.sort((a, b) => b.p - a.p);
+  let top3 = list.slice(0, 3);
+  let html = "";
+  top3.forEach((it, i) => {
+    let medal = ["🥇", "🥈", "🥉"][i];
+    html += `<div class="rank">${medal} ${it.n} ￥${it.p}</div>`;
+  });
+  document.getElementById("top3").innerHTML = html || "<div>暂无出价</div>";
+}
+
+async function loadProduct() {
+  let res = await fetch(GIST_URL);
+  let data = await res.json();
+  let prod = JSON.parse(atob(data.files["product.json"].content));
+  document.getElementById("p-title").innerText = prod.title;
+  document.getElementById("p-img").src = prod.img;
+  document.getElementById("p-desc").innerText = prod.desc;
+}
+
+loadUser();
+loadProduct();
+refreshTop3();
+setInterval(refreshTop3, 3000);
+</script>
+</body>
+</html>
