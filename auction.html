@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BabeHouse 实时拍卖</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#f5f5f5;font-family:Arial,sans-serif;padding:15px;max-width:600px;margin:0 auto}
+.card{background:#fff;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08)}
+h2{font-size:18px;margin-bottom:10px}
+input{width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;margin:8px 0}
+button{width:100%;padding:12px;background:#007AFF;color:#fff;border:0;border-radius:8px;margin-top:5px}
+.goods-img{width:100%;border-radius:10px;margin:10px 0}
+.rank-item{padding:10px;border-bottom:1px solid #f0f0f0}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h2>🏆 BabeHouse 实时拍卖</h2>
+</div>
+
+<div class="card">
+  <input id="username" placeholder="输入用户名（可随时修改）">
+  <button onclick="setUser()">设置 / 修改用户名</button>
+  <div style="font-size:12px;color:#666;margin-top:5px">
+    当前用户：<span id="user">未设置</span>
+  </div>
+</div>
+
+<div class="card">
+  <img id="goodImg" class="goods-img" src="https://picsum.photos/600/400">
+  <h2 id="goodTitle">拍卖商品</h2>
+  <p id="goodIntro" style="color:#666">起拍价：100元</p>
+</div>
+
+<div class="card">
+  <h2>我要出价</h2>
+  <input id="price" type="number" min="100" placeholder="请输入出价">
+  <button onclick="addBid()">提交出价</button>
+  <div style="font-size:12px;color:#888">可重复出价，自动更新最高价</div>
+</div>
+
+<div class="card">
+  <h2>🔥 当前出价前三名</h2>
+  <div id="rank"></div>
+</div>
+
+<script src="https://imgcache.qq.com/qcloud/tcbjs/1.13.6/tcb-js-sdk.min.js"></script>
+<script>
+const app = tcb.init({
+  env: "babehouse-7g2pol15cd8980c7",
+  secretId: "AKID2GG3buzqTrBKGyRq8C3g5FAtPineJl02",
+  secretKey: "xiFZgbIn6B2jDTUJ4nQp1zlKekeLp58z"
+});
+const db = app.database();
+
+let myName = localStorage.getItem("user");
+
+function $(id){return document.getElementById(id)}
+
+function setUser(){
+  let v = $("username").value.trim();
+  if(!v)return alert("请输入用户名");
+  myName = v;
+  localStorage.setItem("user",v);
+  $("user").innerText = v;
+}
+
+async function addBid(){
+  if(!myName)return alert("请先设置用户名");
+  let p = Number($("price").value);
+  if(!p || p<100)return alert("价格不能低于100元");
+
+  try {
+    let has = await db.collection("auction").where({name:myName}).get();
+    if(has.data.length>0){
+      await db.collection("auction").where({name:myName}).update({price:p});
+    }else{
+      await db.collection("auction").add({name:myName, price:p});
+    }
+    $("price").value="";
+    loadRank();
+    alert("出价成功！所有人可见");
+  }catch(e){
+    alert("出价失败，请重试");
+    console.log(e);
+  }
+}
+
+async function loadRank(){
+  try {
+    let res = await db.collection("auction").orderBy("price","desc").limit(3).get();
+    let arr = res.data;
+    let html = "";
+    if(arr.length===0) html="<div class='rank-item'>暂无出价</div>";
+    else arr.forEach((it,i)=>{
+      let m=["🥇","🥈","🥉"][i];
+      html+=`<div class='rank-item'>${m} ${it.name} ￥${it.price}</div>`;
+    });
+    $("rank").innerHTML = html;
+  }catch(e){
+    $("rank").innerHTML = "<div class='rank-item'>加载中...</div>";
+  }
+}
+
+window.onload=()=>{
+  if(myName)$("user").innerText=myName;
+  loadRank();
+  setInterval(loadRank,3000);
+}
+</script>
+</body>
+</html>
