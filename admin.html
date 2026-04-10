@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>拍卖后台</title>
+<style>
+*{box-sizing:border-box}
+body{background:#f5f5f5;padding:20px;max-width:500px;margin:auto}
+.card{background:white;padding:20px;border-radius:12px;margin-bottom:12px}
+input,textarea{width:100%;padding:10px;margin:8px 0;border-radius:8px;border:1px solid #ddd}
+button{width:100%;padding:12px;background:red;color:white;border:none;border-radius:8px}
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>⚙️ 拍卖后台管理</h2>
+</div>
+
+<div class="card">
+  <h3>商品图片链接</h3>
+  <input id="img" placeholder="https://">
+</div>
+
+<div class="card">
+  <h3>商品名称</h3>
+  <input id="title">
+</div>
+
+<div class="card">
+  <h3>商品描述</h3>
+  <textarea id="desc" rows="3"></textarea>
+</div>
+
+<button onclick="saveProduct()">保存商品信息</button>
+<br><br>
+<button onclick="clearAll()" style="background:#cc0000">清空所有出价</button>
+
+<script>
+const GIST_URL = "https://api.github.com/gists/99999999999999999";
+const TOKEN = "YOUR_GIST_TOKEN";
+
+async function saveProduct() {
+  let img = document.getElementById("img").value;
+  let title = document.getElementById("title").value;
+  let desc = document.getElementById("desc").value;
+
+  await fetch(GIST_URL, {
+    method: "PATCH",
+    headers: { Authorization: "token " + TOKEN },
+    body: JSON.stringify({
+      files: {
+        "product.json": {
+          content: btoa(JSON.stringify({ img, title, desc }))
+        }
+      }
+    })
+  });
+  alert("保存成功！");
+}
+
+async function clearAll() {
+  if (!confirm("确定清空所有出价？")) return;
+  await fetch(GIST_URL, {
+    method: "PATCH",
+    headers: { Authorization: "token " + TOKEN },
+    body: JSON.stringify({
+      files: { "bids.json": { content: btoa("[]") } }
+    })
+  });
+  alert("已清空！");
+}
+</script>
+</body>
+</html>
