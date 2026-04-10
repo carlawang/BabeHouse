@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>后台</title>
+<style>
+body{padding:20px;max-width:500px;margin:auto}
+input,textarea,button{width:100%;padding:10px;margin:5px 0}
+</style>
+</head>
+<body>
+<h2>拍卖后台</h2>
+<input id="img" placeholder="图片链接"><br>
+<input id="title" placeholder="商品名"><br>
+<textarea id="desc" placeholder="描述"></textarea><br>
+<button onclick="save()">保存</button>
+<button onclick="clearBids()">清空出价</button>
+
+<script>
+const channel = "YOUR_CHANNEL_ID";
+const pushUrl = "https://push.livewire.to/push";
+const pullUrl = "https://push.livewire.to/pull";
+
+async function save(){
+  let img = document.getElementById("img").value;
+  let title = document.getElementById("title").value;
+  let desc = document.getElementById("desc").value;
+  await fetch(pushUrl,{
+    method:"POST",
+    body:JSON.stringify({
+      channel:"goods_"+channel,
+      data:{img,title,desc}
+    })
+  });
+  alert("保存成功");
+}
+
+async function clearBids(){
+  if(!confirm("确定清空？"))return;
+  await fetch(pushUrl,{
+    method:"POST",
+    body:JSON.stringify({channel,data:[]})
+  });
+  alert("已清空");
+}
+</script>
+</body>
+</html>
